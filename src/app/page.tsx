@@ -230,8 +230,9 @@ export default function Home() {
                   <div className="rounded-lg border border-line bg-panel p-4">
                     <p className="text-sm text-slate-400">AI fallback</p>
                     <p className="mt-1 text-sm font-semibold text-slate-100">
-                      {result.aiUsed ? `${result.aiMode}${result.aiModel ? ` · ${result.aiModel}` : ""}` : "Not used"}
+                      {result.aiUsed ? `${result.aiMode}${result.aiModel ? ` · ${result.aiModel}` : ""}` : result.aiStatus}
                     </p>
+                    {result.aiError ? <p className="mt-2 text-xs text-red-200">{result.aiError}</p> : null}
                   </div>
                   <CopyButton label={copied === "discord" ? "Discord copied" : "Copy Discord reply"} onClick={() => copyOutput("discord", result.discordReply)} />
                   <CopyButton label={copied === "github" ? "Issue copied" : "Copy GitHub issue"} onClick={() => copyOutput("github", result.githubIssue)} />

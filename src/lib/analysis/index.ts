@@ -51,6 +51,7 @@ function createAnalysis(log: string, logType: LogType, redactions: RedactionSumm
     redactions,
     aiUsed: false,
     aiMode: "none" as const,
+    aiStatus: matches.length === 0 || matches.every((match) => match.id === "generic-crash") ? ("not-configured" as const) : ("not-needed" as const),
   };
   const githubIssue = createGithubIssue(base, logType);
   const markdownReport = createMarkdownReport(base, logType);

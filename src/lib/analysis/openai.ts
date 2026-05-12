@@ -22,6 +22,8 @@ type AiConfig = {
 };
 
 const GENERIC_ONLY_RULES = new Set(["generic-crash"]);
+const GENERIC_FALLBACK_MESSAGE =
+  "AI fallback was needed for this log, but no AI provider is configured or the configured provider could not be reached. Run `npm run setup` to configure local Ollama/Gemma 4 or a remote OpenAI-compatible API key.";
 
 export function shouldUseAi(result: AnalysisResult): boolean {
   const mode = getAiConfig().mode;
@@ -37,11 +39,33 @@ export function shouldUseAi(result: AnalysisResult): boolean {
   return result.detectedRules.length === 0 || result.detectedRules.every((rule) => GENERIC_ONLY_RULES.has(rule));
 }
 
+export function markAiNotConfigured(result: AnalysisResult): AnalysisResult {
+  if (!needsAiTriage(result)) {
+    return {
+      ...result,
+      aiStatus: "not-needed",
+    };
+  }
+
+  return rebuildResult({
+    ...result,
+    likelyCause: `${result.likelyCause} ${GENERIC_FALLBACK_MESSAGE}`,
+    fixSteps: [
+      "Configure AI fallback with `npm run setup`.",
+      "Choose local Ollama/Gemma 4 or a remote OpenAI-compatible API provider.",
+      "Rerun the same log so AI can triage the unknown crash.",
+      ...result.fixSteps.slice(0, 3),
+    ],
+    aiStatus: "not-configured",
+    aiError: "AI fallback is not configured.",
+  });
+}
+
 export async function analyzeWithAi(result: AnalysisResult, logType: LogType, redactedLog: string): Promise<AnalysisResult> {
   const config = getAiConfig();
 
   if (config.mode === "off") {
-    return result;
+    return markAiNotConfigured(result);
   }
 
   try {
@@ -91,14 +115,14 @@ export async function analyzeWithAi(result: AnalysisResult, logType: LogType, re
     clearTimeout(timeout);
 
     if (!response.ok) {
-      return result;
+      return markAiFailed(result, `AI provider returned HTTP ${response.status}.`);
     }
 
     const data = (await response.json()) as ChatCompletionResponse;
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      return result;
+      return markAiFailed(result, "AI provider returned an empty response.");
     }
 
     const patch = JSON.parse(content) as AiPatch;
@@ -114,21 +138,13 @@ export async function analyzeWithAi(result: AnalysisResult, logType: LogType, re
       aiUsed: true,
       aiMode: mode,
       aiModel: config.model,
+      aiStatus: "used",
+      aiError: undefined,
     } satisfies AnalysisResult;
 
-    const githubIssue = createGithubIssue(enriched, logType);
-    const markdownReport = createMarkdownReport(enriched, logType);
-
-    return {
-      ...enriched,
-      discordReply: createDiscordReply(enriched),
-      githubIssue,
-      markdownReport,
-      jsonReport: JSON.stringify(enriched, null, 2),
-      githubIssueUrl: createGithubIssueUrl(githubIssue),
-    };
-  } catch {
-    return result;
+    return rebuildResult(enriched, logType);
+  } catch (error) {
+    return markAiFailed(result, error instanceof Error ? error.message : "AI fallback failed.");
   }
 }
 
@@ -167,6 +183,47 @@ function parseMode(value?: string): AiMode {
   }
 
   return "fallback";
+}
+
+function needsAiTriage(result: AnalysisResult): boolean {
+  return result.detectedRules.length === 0 || result.detectedRules.every((rule) => GENERIC_ONLY_RULES.has(rule));
+}
+
+function markAiFailed(result: AnalysisResult, aiError: string): AnalysisResult {
+  if (!needsAiTriage(result)) {
+    return {
+      ...result,
+      aiStatus: "failed",
+      aiError,
+    };
+  }
+
+  return rebuildResult({
+    ...result,
+    likelyCause: `${result.likelyCause} ${GENERIC_FALLBACK_MESSAGE}`,
+    fixSteps: [
+      "Check that your local model or API provider is running.",
+      "For Ollama, run `ollama --version`, then `npm run ai:ollama:pull`.",
+      "Confirm `.env.local` has `CRASHSENSE_AI_MODE=fallback` and the correct base URL/model.",
+      ...result.fixSteps.slice(0, 3),
+    ],
+    aiStatus: "failed",
+    aiError,
+  });
+}
+
+function rebuildResult(result: AnalysisResult, logType: LogType = "unknown"): AnalysisResult {
+  const githubIssue = createGithubIssue(result, logType);
+  const markdownReport = createMarkdownReport(result, logType);
+
+  return {
+    ...result,
+    discordReply: createDiscordReply(result),
+    githubIssue,
+    markdownReport,
+    jsonReport: JSON.stringify(result, null, 2),
+    githubIssueUrl: createGithubIssueUrl(githubIssue),
+  };
 }
 
 function isConfidence(value: unknown): value is Confidence {

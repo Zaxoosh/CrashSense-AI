@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { analyzeCrashLog, type AnalysisRequest, type LogType } from "@/lib/analysis";
-import { analyzeWithAi, shouldUseAi } from "@/lib/analysis/openai";
+import { analyzeWithAi, markAiNotConfigured, shouldUseAi } from "@/lib/analysis/openai";
 import { redactLog } from "@/lib/analysis/redaction";
 
 const logTypes: LogType[] = ["minecraft", "docker", "github-actions", "unknown"];
@@ -27,7 +27,9 @@ export async function POST(request: Request) {
 
   const { redactedLog } = redactLog(log);
   const ruleBasedResult = analyzeCrashLog({ log, logType });
-  const result = shouldUseAi(ruleBasedResult) ? await analyzeWithAi(ruleBasedResult, logType, redactedLog) : ruleBasedResult;
+  const result = shouldUseAi(ruleBasedResult)
+    ? await analyzeWithAi(ruleBasedResult, logType, redactedLog)
+    : markAiNotConfigured(ruleBasedResult);
 
   return NextResponse.json(result);
 }

@@ -151,6 +151,8 @@ npm run dev
 
 CrashSense AI is rules-first. In the default recommended setup, AI only runs when no specific rule matches, or when the only match is the generic crash fallback.
 
+If the result says `Generic crash`, CrashSense AI should hand the log to AI triage when AI is configured. If AI is not configured or the provider is unreachable, the UI will show `AI fallback: not-configured` or `AI fallback: failed` and include setup/provider fix steps instead of silently pretending the generic rule is enough.
+
 Supported modes:
 
 - `fallback`: use AI only when the rules database does not identify a specific cause.

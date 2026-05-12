@@ -38,7 +38,7 @@ describe("POST /api/analyze", () => {
   });
 
   it("handles unknown logs without AI configuration", async () => {
-    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("CRASHSENSE_AI_MODE", "off");
     const response = await POST(
       new Request("http://localhost/api/analyze", {
         method: "POST",
@@ -49,6 +49,9 @@ describe("POST /api/analyze", () => {
 
     expect(response.status).toBe(200);
     expect(body.confidence).toBe("low");
+    expect(body.aiStatus).toBe("not-configured");
+    expect(body.likelyCause).toContain("AI fallback was needed");
+    expect(body.fixSteps[0]).toContain("npm run setup");
   });
 
   it("redacts sensitive values before returning evidence", async () => {
@@ -89,6 +92,7 @@ describe("POST /api/analyze", () => {
     expect(response.status).toBe(200);
     expect(body.detectedRules).toContain("port-in-use");
     expect(body.aiUsed).toBe(false);
+    expect(body.aiStatus).toBe("not-needed");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -132,7 +136,36 @@ describe("POST /api/analyze", () => {
     expect(response.status).toBe(200);
     expect(body.aiUsed).toBe(true);
     expect(body.aiMode).toBe("fallback");
+    expect(body.aiStatus).toBe("used");
     expect(body.aiModel).toBe("gemma4:e4b");
     expect(body.summary).toBe("The app crashed inside an unclassified handler.");
+  });
+
+  it("surfaces AI provider failure for generic crashes", async () => {
+    vi.stubEnv("CRASHSENSE_AI_MODE", "fallback");
+    vi.stubEnv("CRASHSENSE_AI_BASE_URL", "http://localhost:11434/v1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+      }),
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/analyze", {
+        method: "POST",
+        body: JSON.stringify({
+          logType: "unknown",
+          log: "RuntimeException: handler failed",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.aiStatus).toBe("failed");
+    expect(body.aiError).toContain("HTTP 500");
+    expect(body.likelyCause).toContain("AI fallback was needed");
   });
 });

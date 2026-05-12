@@ -70,4 +70,6 @@ export type AnalysisResult = {
   aiUsed: boolean;
   aiMode: "none" | "fallback" | "enrichment";
   aiModel?: string;
+  aiStatus: "not-configured" | "not-needed" | "used" | "failed";
+  aiError?: string;
 };
