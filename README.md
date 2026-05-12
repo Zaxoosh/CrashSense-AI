@@ -189,7 +189,7 @@ CRASHSENSE_AI_MODE=fallback
 CRASHSENSE_AI_BASE_URL=http://localhost:11434/v1
 CRASHSENSE_AI_MODEL=gemma4:e4b
 CRASHSENSE_AI_API_KEY=
-CRASHSENSE_AI_TIMEOUT_MS=20000
+CRASHSENSE_AI_TIMEOUT_MS=120000
 ```
 
 Ollama's OpenAI-compatible server normally listens on `http://localhost:11434/v1`. No API key is required for local Ollama.
