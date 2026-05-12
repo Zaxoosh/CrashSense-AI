@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { analyzeCrashLog, type AnalysisRequest, type LogType } from "@/lib/analysis";
-import { enrichWithOpenAI } from "@/lib/analysis/openai";
+import { analyzeWithAi, shouldUseAi } from "@/lib/analysis/openai";
+import { redactLog } from "@/lib/analysis/redaction";
 
 const logTypes: LogType[] = ["minecraft", "docker", "github-actions", "unknown"];
 
@@ -24,8 +25,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Log is too large for the MVP analyzer. Please paste the relevant crash section." }, { status: 413 });
   }
 
+  const { redactedLog } = redactLog(log);
   const ruleBasedResult = analyzeCrashLog({ log, logType });
-  const result = await enrichWithOpenAI(ruleBasedResult, logType, ruleBasedResult.markdownReport);
+  const result = shouldUseAi(ruleBasedResult) ? await analyzeWithAi(ruleBasedResult, logType, redactedLog) : ruleBasedResult;
 
   return NextResponse.json(result);
 }

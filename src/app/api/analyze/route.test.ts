@@ -1,7 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 describe("POST /api/analyze", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
   it("returns an analysis for valid input", async () => {
     vi.stubEnv("OPENAI_API_KEY", "");
     const response = await POST(
@@ -61,5 +67,72 @@ describe("POST /api/analyze", () => {
     expect(response.status).toBe(200);
     expect(body.githubIssue).not.toContain("supersecretvalue");
     expect(body.redactions.length).toBeGreaterThan(0);
+  });
+
+  it("does not call AI for a specific rule match in fallback mode", async () => {
+    vi.stubEnv("CRASHSENSE_AI_MODE", "fallback");
+    vi.stubEnv("CRASHSENSE_AI_BASE_URL", "http://localhost:11434/v1");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new Request("http://localhost/api/analyze", {
+        method: "POST",
+        body: JSON.stringify({
+          logType: "docker",
+          log: "listen tcp 0.0.0.0:8080: bind: address already in use",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.detectedRules).toContain("port-in-use");
+    expect(body.aiUsed).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses AI fallback for generic unknown crashes when configured", async () => {
+    vi.stubEnv("CRASHSENSE_AI_MODE", "fallback");
+    vi.stubEnv("CRASHSENSE_AI_BASE_URL", "http://localhost:11434/v1");
+    vi.stubEnv("CRASHSENSE_AI_MODEL", "gemma4:e4b");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  summary: "The app crashed inside an unclassified handler.",
+                  likelyCause: "The stack trace points to application code that is not covered by the current rule database.",
+                  confidence: "medium",
+                  evidence: ["RuntimeException: handler failed"],
+                  fixSteps: ["Inspect the first application stack frame.", "Check recent changes to that handler."],
+                }),
+              },
+            },
+          ],
+        }),
+      }),
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/analyze", {
+        method: "POST",
+        body: JSON.stringify({
+          logType: "unknown",
+          log: "RuntimeException: handler failed",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.aiUsed).toBe(true);
+    expect(body.aiMode).toBe("fallback");
+    expect(body.aiModel).toBe("gemma4:e4b");
+    expect(body.summary).toBe("The app crashed inside an unclassified handler.");
   });
 });

@@ -67,4 +67,7 @@ export type AnalysisResult = {
   detectedRules: RuleId[];
   findings: AnalysisFinding[];
   redactions: RedactionSummary[];
+  aiUsed: boolean;
+  aiMode: "none" | "fallback" | "enrichment";
+  aiModel?: string;
 };

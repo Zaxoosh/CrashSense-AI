@@ -49,6 +49,8 @@ function createAnalysis(log: string, logType: LogType, redactions: RedactionSumm
       score,
     })),
     redactions,
+    aiUsed: false,
+    aiMode: "none" as const,
   };
   const githubIssue = createGithubIssue(base, logType);
   const markdownReport = createMarkdownReport(base, logType);

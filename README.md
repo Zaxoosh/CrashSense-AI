@@ -2,7 +2,7 @@
 
 CrashSense AI is an open-source web app that turns crash logs into plain-English diagnosis. It is built for Minecraft modpacks, Docker and Unraid containers, GitHub Actions, and general application logs.
 
-The app is privacy-first for the MVP: local rules always run before optional AI enrichment, sensitive values are redacted before analysis output, and no database is used.
+The app is privacy-first for the MVP: local rules always run first, AI is used only as a fallback when configured, sensitive values are redacted before analysis output, and no database is used.
 
 ![CrashSense AI desktop analysis](docs/screenshots/desktop.png)
 
@@ -37,6 +37,7 @@ The app is privacy-first for the MVP: local rules always run before optional AI 
 - Export markdown and JSON reports.
 - Open a prefilled GitHub issue URL.
 - Optional OpenAI-compatible enrichment controlled by environment variables.
+- Local AI support through OpenAI-compatible servers such as Ollama or LM Studio.
 
 ![CrashSense AI mobile view](docs/screenshots/mobile.png)
 
@@ -49,19 +50,65 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Optional AI Enrichment
+## AI Fallback
 
-Local rule-based analysis always runs first. AI enrichment is disabled unless `OPENAI_API_KEY` is set.
+CrashSense AI is rules-first. In the default recommended setup, AI only runs when no specific rule matches, or when the only match is the generic crash fallback.
+
+Supported modes:
+
+- `fallback`: use AI only when the rules database does not identify a specific cause.
+- `always`: use AI to enrich every result.
+- `off`: never call an AI provider.
+
+### Local AI With Ollama
+
+Recommended local model: Gemma 4 E4B for most developer laptops. Larger Gemma 4 variants can improve reasoning if your hardware can run them comfortably.
+
+Google describes Gemma 4 as an open model family with E2B, E4B, 26B MoE, and 31B Dense sizes, and lists Ollama and LM Studio among supported tools. See Google's Gemma 4 announcement and the Ollama Gemma 4 library page:
+
+- [Google Gemma 4 announcement](https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/)
+- [Ollama Gemma 4 library](https://www.ollama.com/library/gemma4)
+
+Install Ollama, then pull the local model:
+
+```bash
+npm run ai:ollama:pull
+```
+
+Start or test the model:
+
+```bash
+npm run ai:ollama:run
+```
 
 Create `.env.local`:
 
 ```bash
-OPENAI_API_KEY=your-api-key
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
+CRASHSENSE_AI_MODE=fallback
+CRASHSENSE_AI_BASE_URL=http://localhost:11434/v1
+CRASHSENSE_AI_MODEL=gemma4:e4b
+CRASHSENSE_AI_API_KEY=
+CRASHSENSE_AI_TIMEOUT_MS=20000
 ```
 
-Any OpenAI-compatible chat completions provider can be used by changing `OPENAI_BASE_URL` and `OPENAI_MODEL`. The AI prompt is constrained to improve wording only from supplied evidence; it must not invent evidence, change confidence, or add unsupported root causes.
+Ollama's OpenAI-compatible server normally listens on `http://localhost:11434/v1`. No API key is required for local Ollama.
+
+### Remote API Provider
+
+Any OpenAI-compatible chat completions provider can be used by changing the base URL, model, and API key.
+
+Create `.env.local`:
+
+```bash
+CRASHSENSE_AI_MODE=fallback
+CRASHSENSE_AI_BASE_URL=https://api.openai.com/v1
+CRASHSENSE_AI_MODEL=gpt-4o-mini
+CRASHSENSE_AI_API_KEY=your-api-key
+```
+
+The older `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_API_KEY` names are still accepted for compatibility.
+
+The AI prompt is constrained to use only the redacted log and rule result. Evidence returned by AI is accepted only when the excerpt appears in the redacted log.
 
 ## Example Logs
 

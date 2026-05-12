@@ -9,7 +9,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src --ext .ts,.tsx",
-    "test": "vitest run"
+    "test": "vitest run",
+    "ai:ollama:pull": "ollama pull gemma4:e4b",
+    "ai:ollama:run": "ollama run gemma4:e4b",
+    "ai:ollama:list": "ollama list"
   },
   "dependencies": {
     "next": "15.5.18",
