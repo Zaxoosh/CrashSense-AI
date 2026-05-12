@@ -10,9 +10,9 @@
     "start": "next start",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest run",
-    "ai:ollama:pull": "ollama pull gemma4:e4b",
-    "ai:ollama:run": "ollama run gemma4:e4b",
-    "ai:ollama:list": "ollama list"
+    "ai:ollama:pull": "node scripts/ollama.mjs pull",
+    "ai:ollama:run": "node scripts/ollama.mjs run",
+    "ai:ollama:list": "node scripts/ollama.mjs list"
   },
   "dependencies": {
     "next": "15.5.18",

@@ -50,6 +50,23 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+For local AI fallback, install Ollama first:
+
+1. Download Ollama from [ollama.com/download](https://ollama.com/download).
+2. Run the installer.
+3. Close and reopen your terminal.
+4. Confirm it is installed:
+
+```bash
+ollama --version
+```
+
+Then pull the recommended local model:
+
+```bash
+npm run ai:ollama:pull
+```
+
 ## AI Fallback
 
 CrashSense AI is rules-first. In the default recommended setup, AI only runs when no specific rule matches, or when the only match is the generic crash fallback.
@@ -69,11 +86,13 @@ Google describes Gemma 4 as an open model family with E2B, E4B, 26B MoE, and 31B
 - [Google Gemma 4 announcement](https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/)
 - [Ollama Gemma 4 library](https://www.ollama.com/library/gemma4)
 
-Install Ollama, then pull the local model:
+Install Ollama from [ollama.com/download](https://ollama.com/download), then pull the local model:
 
 ```bash
 npm run ai:ollama:pull
 ```
+
+If Ollama is missing, the npm command will print the install link and setup steps instead of failing with a raw command-not-found error.
 
 Start or test the model:
 
