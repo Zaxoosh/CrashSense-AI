@@ -1,0 +1,4 @@
+Error: permission denied while opening /home/alex/app/config.yml
+api_key=sk-test-secret-value
+Webhook: https://discord.com/api/webhooks/123456789/private-token
+Failed to connect to 192.168.1.25 for user admin@example.com

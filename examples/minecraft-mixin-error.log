@@ -1,0 +1,3 @@
+[main/ERROR]: Mixin apply failed sodium.mixins.json:features.render.MixinWorldRenderer
+org.spongepowered.asm.mixin.injection.throwables.InjectionError: Critical injection failure
+Caused by: java.lang.RuntimeException: MixinTransformerError

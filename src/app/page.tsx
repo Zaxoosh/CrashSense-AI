@@ -17,7 +17,7 @@ export default function Home() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [copied, setCopied] = useState<"discord" | "github" | null>(null);
+  const [copied, setCopied] = useState<"discord" | "github" | "markdown" | "json" | null>(null);
 
   const selectedExample = useMemo(() => exampleLogs.find((example) => example.log === log), [log]);
 
@@ -63,7 +63,7 @@ export default function Home() {
     setCopied(null);
   }
 
-  async function copyOutput(kind: "discord" | "github", value: string) {
+  async function copyOutput(kind: "discord" | "github" | "markdown" | "json", value: string) {
     try {
       await navigator.clipboard.writeText(value);
     } catch {
@@ -79,6 +79,16 @@ export default function Home() {
     }
 
     setCopied(kind);
+  }
+
+  function downloadReport(filename: string, content: string, type: string) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -170,7 +180,7 @@ export default function Home() {
                   {result.evidence.length > 0 ? (
                     <ul className="space-y-2">
                       {result.evidence.map((line) => (
-                        <li key={line} className="rounded border border-line bg-ink p-2 font-mono text-xs leading-5 text-slate-300">
+                        <li key={line} className="whitespace-pre-wrap rounded border border-line bg-ink p-2 font-mono text-xs leading-5 text-slate-300">
                           {line}
                         </li>
                       ))}
@@ -186,6 +196,32 @@ export default function Home() {
                     ))}
                   </ol>
                 </ResultCard>
+                <ResultCard title="Ranked findings">
+                  <div className="space-y-2">
+                    {result.findings.slice(0, 5).map((finding) => (
+                      <div key={finding.id} className="rounded border border-line bg-ink p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold text-slate-100">{finding.title}</p>
+                          <p className="text-xs uppercase tracking-[0.18em] text-accent">score {finding.score}</p>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {finding.confidence} confidence · first evidence near line {finding.firstLine}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </ResultCard>
+                {result.redactions.length > 0 ? (
+                  <ResultCard title="Redactions">
+                    <ul className="space-y-1">
+                      {result.redactions.map((redaction) => (
+                        <li key={redaction.type}>
+                          {redaction.type}: {redaction.count}
+                        </li>
+                      ))}
+                    </ul>
+                  </ResultCard>
+                ) : null}
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-lg border border-line bg-panel p-4">
                     <p className="text-sm text-slate-400">Confidence</p>
@@ -193,6 +229,18 @@ export default function Home() {
                   </div>
                   <CopyButton label={copied === "discord" ? "Discord copied" : "Copy Discord reply"} onClick={() => copyOutput("discord", result.discordReply)} />
                   <CopyButton label={copied === "github" ? "Issue copied" : "Copy GitHub issue"} onClick={() => copyOutput("github", result.githubIssue)} />
+                  <CopyButton label={copied === "markdown" ? "Markdown copied" : "Copy markdown"} onClick={() => copyOutput("markdown", result.markdownReport)} />
+                  <CopyButton label={copied === "json" ? "JSON copied" : "Copy JSON"} onClick={() => copyOutput("json", result.jsonReport)} />
+                  <CopyButton label="Download .md" onClick={() => downloadReport("crashsense-report.md", result.markdownReport, "text/markdown")} />
+                  <CopyButton label="Download .json" onClick={() => downloadReport("crashsense-report.json", result.jsonReport, "application/json")} />
+                  <a
+                    href={result.githubIssueUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="min-h-16 rounded-lg border border-line bg-panel px-4 py-3 text-left text-sm font-semibold text-slate-100 transition hover:border-accent hover:text-accent"
+                  >
+                    Open GitHub issue
+                  </a>
                 </div>
               </>
             ) : (

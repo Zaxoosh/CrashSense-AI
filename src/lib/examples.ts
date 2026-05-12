@@ -41,4 +41,33 @@ RuntimeError: No NVIDIA GPU detected. CUDA driver library libcuda.so cannot open
 Error: ENOENT: no such file or directory, open '/home/runner/work/app/coverage/lcov.info'
 Process completed with exit code 1.`,
   },
+  {
+    label: "Minecraft mixin failure",
+    type: "minecraft",
+    log: `[main/ERROR]: Mixin apply failed sodium.mixins.json:features.render.MixinWorldRenderer
+org.spongepowered.asm.mixin.injection.throwables.InjectionError: Critical injection failure
+Caused by: java.lang.RuntimeException: MixinTransformerError`,
+  },
+  {
+    label: "GitHub Actions missing secret",
+    type: "github-actions",
+    log: `Run docker/login-action@v3
+Error: Input required and not supplied: password
+Workflow references secrets.REGISTRY_TOKEN but the secret is not available in this context.`,
+  },
+  {
+    label: "Docker volume mapping",
+    type: "docker",
+    log: `Error response from daemon: invalid mount config for type "bind":
+bind source path does not exist: /mnt/user/appdata/crashsense
+Container failed to start.`,
+  },
+  {
+    label: "Privacy redaction",
+    type: "docker",
+    log: `Error: permission denied while opening /home/alex/app/config.yml
+api_key=sk-test-secret-value
+Webhook: https://discord.com/api/webhooks/123456789/private-token
+Failed to connect to 192.168.1.25 for user admin@example.com`,
+  },
 ];

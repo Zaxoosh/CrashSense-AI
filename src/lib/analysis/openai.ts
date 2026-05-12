@@ -1,4 +1,4 @@
-import { createDiscordReply, createGithubIssue } from "./formatters";
+import { createDiscordReply, createGithubIssue, createGithubIssueUrl, createMarkdownReport } from "./formatters";
 import type { AnalysisResult, LogType } from "./types";
 
 type ChatCompletionResponse = {
@@ -35,7 +35,7 @@ export async function enrichWithOpenAI(result: AnalysisResult, logType: LogType,
           {
             role: "system",
             content:
-              "You improve crash-log diagnosis wording. Return JSON with summary, likelyCause, and fixSteps. Do not invent evidence or change confidence.",
+              "You improve crash-log diagnosis wording. Return JSON with summary, likelyCause, and fixSteps. Only use the supplied evidence. Do not invent evidence, change confidence, add new root causes, or include secrets.",
           },
           {
             role: "user",
@@ -75,10 +75,16 @@ export async function enrichWithOpenAI(result: AnalysisResult, logType: LogType,
       fixSteps: Array.isArray(patch.fixSteps) && patch.fixSteps.length > 0 ? patch.fixSteps.slice(0, 6) : result.fixSteps,
     };
 
+    const githubIssue = createGithubIssue(enriched, logType);
+    const markdownReport = createMarkdownReport(enriched, logType);
+
     return {
       ...enriched,
       discordReply: createDiscordReply(enriched),
-      githubIssue: createGithubIssue(enriched, logType),
+      githubIssue,
+      markdownReport,
+      jsonReport: JSON.stringify(enriched, null, 2),
+      githubIssueUrl: createGithubIssueUrl(githubIssue),
     };
   } catch {
     return result;
