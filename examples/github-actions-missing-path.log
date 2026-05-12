@@ -1,0 +1,3 @@
+Run npm test
+Error: ENOENT: no such file or directory, open '/home/runner/work/app/coverage/lcov.info'
+Process completed with exit code 1.

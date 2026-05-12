@@ -1,0 +1,3 @@
+Starting container with GPU acceleration
+nvidia-smi: not found
+RuntimeError: No NVIDIA GPU detected. CUDA driver library libcuda.so cannot open shared object file

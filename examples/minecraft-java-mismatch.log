@@ -1,0 +1,2 @@
+[main/ERROR]: Failed to start Minecraft
+java.lang.UnsupportedClassVersionError: net/fabricmc/loader/impl/launch/knot/KnotClient has been compiled by a more recent version of the Java Runtime (class file version 61.0), this version only recognizes class file versions up to 55.0

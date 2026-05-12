@@ -1,0 +1,3 @@
+Error response from daemon: driver failed programming external connectivity on endpoint web:
+Bind for 0.0.0.0:8080 failed: port is already allocated
+listen tcp 0.0.0.0:8080: bind: address already in use
