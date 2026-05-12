@@ -15,6 +15,7 @@ export type RuleId =
   | "mixin-error"
   | "bad-config-file"
   | "client-server-mod-mismatch"
+  | "null-pointer-exception"
   | "permission-denied"
   | "uid-gid-mismatch"
   | "out-of-memory"

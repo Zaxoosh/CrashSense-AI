@@ -144,6 +144,27 @@ export const ruleDefinitions: RuleDefinition[] = [
     ],
   },
   {
+    id: "null-pointer-exception",
+    title: "Java null pointer crash",
+    summary: "A Java object was unexpectedly null, causing the app or mod to crash.",
+    cause: "A mod or app component tried to use a value that was missing at runtime. In Minecraft logs, the first non-Minecraft stack frame usually points to the mod code or integration that needs attention.",
+    confidence: "high",
+    specificity: 9,
+    appliesTo: ["minecraft", "unknown"],
+    patterns: [
+      "NullPointerException",
+      "Cannot invoke .* because .* is null",
+      "Cannot read field .* because .* is null",
+      "because \".*\" is null",
+    ],
+    fixSteps: [
+      "Find the first stack frame that is not from `net.minecraft`, `java.base`, Forge, Fabric, or NeoForge.",
+      "Update or remove the mod named by that first external stack frame.",
+      "If the crash happens when loading a world, back up the world and test with the suspect mod disabled.",
+      "Report the crash to the mod author with the full stack trace and the exact Minecraft, loader, and mod versions.",
+    ],
+  },
+  {
     id: "permission-denied",
     title: "Permission denied",
     summary: "The process failed because it could not access a required file, directory, device, or socket.",

@@ -18,6 +18,7 @@ The app is privacy-first for the MVP: local rules always run before optional AI 
   - mixin transformation errors
   - bad config files
   - client/server-only mod mismatch
+  - Java null pointer crashes
   - permission denied and PUID/PGID mismatches
   - out of memory
   - port already in use
@@ -69,6 +70,7 @@ Sample logs live in [`examples`](examples):
 - `minecraft-java-mismatch.log`
 - `minecraft-missing-dependency.log`
 - `minecraft-mixin-error.log`
+- `minecraft-null-pointer.log`
 - `docker-port-in-use.log`
 - `docker-volume-mapping.log`
 - `unraid-nvidia-missing.log`

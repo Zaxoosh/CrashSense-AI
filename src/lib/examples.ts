@@ -49,6 +49,17 @@ org.spongepowered.asm.mixin.injection.throwables.InjectionError: Critical inject
 Caused by: java.lang.RuntimeException: MixinTransformerError`,
   },
   {
+    label: "Minecraft null pointer crash",
+    type: "minecraft",
+    log: `java.lang.NullPointerException: Cannot invoke "net.minecraft.world.level.block.entity.BlockEntity.getBlockPos()" because "tileEntity" is null
+	at com.crashsense.testmod.world.CrashyChunkProcessor.processTileEntities(CrashyChunkProcessor.java:184)
+	at com.crashsense.testmod.world.CrashyChunkProcessor.tickChunk(CrashyChunkProcessor.java:112)
+	at com.crashsense.testmod.world.CrashyWorldTicker.onWorldTick(CrashyWorldTicker.java:67)
+	at net.minecraftforge.eventbus.ASMEventHandler_482_CrashyWorldTicker_onWorldTick_WorldTickEvent.invoke(.dynamic)
+	at net.minecraft.server.MinecraftServer.tickServer(MinecraftServer.java:819)
+	at java.base/java.lang.Thread.run(Thread.java:1583)`,
+  },
+  {
     label: "GitHub Actions missing secret",
     type: "github-actions",
     log: `Run docker/login-action@v3

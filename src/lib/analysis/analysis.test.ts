@@ -63,6 +63,22 @@ describe("analyzeLog", () => {
     expect(result.detectedRules).toContain("client-server-mod-mismatch");
   });
 
+  it("detects Minecraft null pointer stack traces", () => {
+    const result = analyzeLog(
+      `java.lang.NullPointerException: Cannot invoke "net.minecraft.world.level.block.entity.BlockEntity.getBlockPos()" because "tileEntity" is null
+\tat com.crashsense.testmod.world.CrashyChunkProcessor.processTileEntities(CrashyChunkProcessor.java:184)
+\tat com.crashsense.testmod.world.CrashyChunkProcessor.tickChunk(CrashyChunkProcessor.java:112)
+\tat net.minecraftforge.eventbus.EventBus.post(EventBus.java:302)
+\tat net.minecraft.server.MinecraftServer.tickServer(MinecraftServer.java:819)
+\tat java.base/java.lang.Thread.run(Thread.java:1583)`,
+      "minecraft",
+    );
+
+    expect(result.detectedRules).toContain("null-pointer-exception");
+    expect(result.summary).toContain("unexpectedly null");
+    expect(result.confidence).toBe("high");
+  });
+
   it("detects Docker volume mapping problems", () => {
     const result = analyzeLog("invalid mount config for type bind: bind source path does not exist", "docker");
     expect(result.detectedRules).toContain("docker-volume-mapping");

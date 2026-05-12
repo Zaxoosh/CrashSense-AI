@@ -107,8 +107,8 @@ export default function Home() {
           </div>
         </header>
 
-        <section className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
-          <div className="rounded-lg border border-line bg-panel/88 p-4 shadow-glow">
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <div className="min-w-0 rounded-lg border border-line bg-panel/88 p-4 shadow-glow">
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr]">
               <label className="flex flex-col gap-2 text-sm font-medium text-slate-200">
                 Log type
@@ -167,7 +167,7 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4">
             {result ? (
               <>
                 <ResultCard title="Summary">
@@ -180,7 +180,7 @@ export default function Home() {
                   {result.evidence.length > 0 ? (
                     <ul className="space-y-2">
                       {result.evidence.map((line) => (
-                        <li key={line} className="whitespace-pre-wrap rounded border border-line bg-ink p-2 font-mono text-xs leading-5 text-slate-300">
+                        <li key={line} className="min-w-0 whitespace-pre-wrap break-words rounded border border-line bg-ink p-2 font-mono text-xs leading-5 text-slate-300 [overflow-wrap:anywhere]">
                           {line}
                         </li>
                       ))}
@@ -260,7 +260,7 @@ export default function Home() {
 
 function ResultCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-line bg-panel p-4 text-sm leading-6 text-slate-300">
+    <section className="min-w-0 rounded-lg border border-line bg-panel p-4 text-sm leading-6 text-slate-300">
       <h2 className="mb-2 text-lg font-semibold text-white">{title}</h2>
       {children}
     </section>
