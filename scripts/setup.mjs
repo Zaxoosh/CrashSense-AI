@@ -124,7 +124,7 @@ async function writeEnv(preset) {
       `CRASHSENSE_AI_BASE_URL=${preset.baseUrl}`,
       `CRASHSENSE_AI_MODEL=${preset.model}`,
       `CRASHSENSE_AI_API_KEY=${preset.apiKey}`,
-      "CRASHSENSE_AI_TIMEOUT_MS=20000",
+      "CRASHSENSE_AI_TIMEOUT_MS=120000",
       "",
     ].join("\n"),
   );

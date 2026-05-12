@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { exampleLogs } from "@/lib/examples";
 import type { AnalysisResult, LogType } from "@/lib/analysis";
 
@@ -11,6 +11,15 @@ const logTypeOptions: Array<{ value: LogType; label: string }> = [
   { value: "unknown", label: "Unknown" },
 ];
 
+const analysisStages = [
+  "Preparing log",
+  "Running rule parser",
+  "Checking AI fallback",
+  "Contacting AI provider",
+  "Waiting for local model",
+  "Formatting report",
+];
+
 export default function Home() {
   const [logType, setLogType] = useState<LogType>("minecraft");
   const [log, setLog] = useState("");
@@ -18,8 +27,22 @@ export default function Home() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState<"discord" | "github" | "markdown" | "json" | null>(null);
+  const [activeStage, setActiveStage] = useState(0);
 
   const selectedExample = useMemo(() => exampleLogs.find((example) => example.log === log), [log]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setActiveStage(0);
+      return undefined;
+    }
+
+    const interval = window.setInterval(() => {
+      setActiveStage((stage) => Math.min(stage + 1, analysisStages.length - 1));
+    }, 1800);
+
+    return () => window.clearInterval(interval);
+  }, [isLoading]);
 
   async function analyze() {
     setError("");
@@ -32,6 +55,7 @@ export default function Home() {
     }
 
     setIsLoading(true);
+    setActiveStage(0);
 
     try {
       const response = await fetch("/api/analyze", {
@@ -168,7 +192,9 @@ export default function Home() {
           </div>
 
           <div className="flex min-w-0 flex-col gap-4">
-            {result ? (
+            {isLoading ? (
+              <AnalysisProgress activeStage={activeStage} />
+            ) : result ? (
               <>
                 <ResultCard title="Summary">
                   <p>{result.summary}</p>
@@ -262,6 +288,35 @@ export default function Home() {
         </section>
       </div>
     </main>
+  );
+}
+
+function AnalysisProgress({ activeStage }: { activeStage: number }) {
+  return (
+    <section className="min-w-0 rounded-lg border border-line bg-panel p-4 text-sm leading-6 text-slate-300">
+      <h2 className="text-lg font-semibold text-white">Analysis in progress</h2>
+      <p className="mt-2 text-slate-400">CrashSense AI is checking rules first, then using AI only if fallback triage is needed.</p>
+      <ol className="mt-4 space-y-3">
+        {analysisStages.map((stage, index) => {
+          const isActive = index === activeStage;
+          const isDone = index < activeStage;
+
+          return (
+            <li key={stage} className="flex items-center gap-3">
+              <span
+                className={[
+                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                  isDone ? "border-accent bg-accent text-ink" : isActive ? "animate-pulse border-warn text-warn" : "border-line text-slate-500",
+                ].join(" ")}
+              >
+                {isDone ? "OK" : index + 1}
+              </span>
+              <span className={isActive ? "font-semibold text-slate-100" : "text-slate-400"}>{stage}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 

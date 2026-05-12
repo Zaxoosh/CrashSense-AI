@@ -22,6 +22,7 @@ type AiConfig = {
 };
 
 const GENERIC_ONLY_RULES = new Set(["generic-crash"]);
+const DEFAULT_AI_TIMEOUT_MS = 120000;
 const GENERIC_FALLBACK_MESSAGE =
   "AI fallback was needed for this log, but no AI provider is configured or the configured provider could not be reached. Run `npm run setup` to configure local Ollama/Gemma 4 or a remote OpenAI-compatible API key.";
 
@@ -111,11 +112,10 @@ export async function analyzeWithAi(result: AnalysisResult, logType: LogType, re
           },
         ],
       }),
-    });
-    clearTimeout(timeout);
+    }).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
-      return markAiFailed(result, `AI provider returned HTTP ${response.status}.`);
+      return markAiFailed(result, await describeHttpFailure(response, config));
     }
 
     const data = (await response.json()) as ChatCompletionResponse;
@@ -144,7 +144,7 @@ export async function analyzeWithAi(result: AnalysisResult, logType: LogType, re
 
     return rebuildResult(enriched, logType);
   } catch (error) {
-    return markAiFailed(result, error instanceof Error ? error.message : "AI fallback failed.");
+    return markAiFailed(result, describeThrownFailure(error, config));
   }
 }
 
@@ -166,14 +166,14 @@ function getAiConfig(): AiConfig {
   const baseUrl = process.env.CRASHSENSE_AI_BASE_URL ?? process.env.AI_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "http://localhost:11434/v1";
   const model = process.env.CRASHSENSE_AI_MODEL ?? process.env.AI_MODEL ?? process.env.OPENAI_MODEL ?? "gemma4:e4b";
   const apiKey = process.env.CRASHSENSE_AI_API_KEY ?? process.env.AI_API_KEY ?? process.env.OPENAI_API_KEY;
-  const timeoutMs = Number(process.env.CRASHSENSE_AI_TIMEOUT_MS ?? "20000");
+  const timeoutMs = Number(process.env.CRASHSENSE_AI_TIMEOUT_MS ?? `${DEFAULT_AI_TIMEOUT_MS}`);
 
   return {
     apiKey: apiKey || undefined,
     baseUrl,
     mode,
     model,
-    timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 20000,
+    timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : DEFAULT_AI_TIMEOUT_MS,
   };
 }
 
@@ -202,14 +202,47 @@ function markAiFailed(result: AnalysisResult, aiError: string): AnalysisResult {
     ...result,
     likelyCause: `${result.likelyCause} ${GENERIC_FALLBACK_MESSAGE}`,
     fixSteps: [
-      "Check that your local model or API provider is running.",
-      "For Ollama, run `ollama --version`, then `npm run ai:ollama:pull`.",
+      "Check the AI fallback status card for the provider error.",
+      "For Ollama, install it from https://ollama.com/download, reopen your terminal, then run `ollama --version`.",
+      "Pull the configured model with `npm run ai:ollama:pull`.",
+      "If this timed out on first load, set `CRASHSENSE_AI_TIMEOUT_MS=120000` or higher in `.env.local`.",
       "Confirm `.env.local` has `CRASHSENSE_AI_MODE=fallback` and the correct base URL/model.",
       ...result.fixSteps.slice(0, 3),
     ],
     aiStatus: "failed",
     aiError,
   });
+}
+
+async function describeHttpFailure(response: Response, config: AiConfig): Promise<string> {
+  const body = await response.text().catch(() => "");
+  const detail = body ? ` Provider response: ${body.slice(0, 400)}` : "";
+
+  if (response.status === 404) {
+    return `AI provider returned HTTP 404 for model "${config.model}". For Ollama, run \`ollama pull ${config.model}\` and verify the model name in .env.local.${detail}`;
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    return `AI provider rejected the request with HTTP ${response.status}. Check CRASHSENSE_AI_API_KEY and provider permissions.${detail}`;
+  }
+
+  return `AI provider returned HTTP ${response.status}.${detail}`;
+}
+
+function describeThrownFailure(error: unknown, config: AiConfig): string {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return `AI request timed out after ${config.timeoutMs}ms. Local models can take a while to load on first use; increase CRASHSENSE_AI_TIMEOUT_MS or start the model once with \`npm run ai:ollama:run\`.`;
+  }
+
+  if (error instanceof Error && /aborted/i.test(error.message)) {
+    return `AI request was aborted after ${config.timeoutMs}ms. Local models can take a while to load on first use; increase CRASHSENSE_AI_TIMEOUT_MS or start the model once with \`npm run ai:ollama:run\`.`;
+  }
+
+  if (error instanceof TypeError && /fetch failed/i.test(error.message)) {
+    return `Could not reach AI provider at ${config.baseUrl}. For local Ollama, install it, run \`ollama --version\`, and make sure the Ollama app/server is running.`;
+  }
+
+  return error instanceof Error ? error.message : "AI fallback failed.";
 }
 
 function rebuildResult(result: AnalysisResult, logType: LogType = "unknown"): AnalysisResult {

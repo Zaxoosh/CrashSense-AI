@@ -149,6 +149,7 @@ describe("POST /api/analyze", () => {
       vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
+        text: async () => "model backend failed",
       }),
     );
 
