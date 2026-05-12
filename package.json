@@ -10,6 +10,10 @@
     "start": "next start",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest run",
+    "setup": "node scripts/setup.mjs",
+    "setup:local": "node scripts/setup.mjs --local",
+    "setup:api": "node scripts/setup.mjs --api",
+    "setup:rules": "node scripts/setup.mjs --rules-only",
     "ai:ollama:pull": "node scripts/ollama.mjs pull",
     "ai:ollama:run": "node scripts/ollama.mjs run",
     "ai:ollama:list": "node scripts/ollama.mjs list"

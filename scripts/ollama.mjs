@@ -22,6 +22,9 @@ if (!hasOllama()) {
       `  3. Run: npm run ai:ollama:pull`,
       "",
       `CrashSense AI is configured to use local model: ${model}`,
+      "",
+      "You can also run the guided setup:",
+      "  npm run setup",
     ].join("\n"),
   );
   process.exit(1);

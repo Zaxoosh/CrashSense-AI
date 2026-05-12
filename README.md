@@ -41,30 +41,110 @@ The app is privacy-first for the MVP: local rules always run first, AI is used o
 
 ![CrashSense AI mobile view](docs/screenshots/mobile.png)
 
-## Getting Started
+## Quick Start
+
+### Option A: Guided Setup
+
+Run the guided setup menu:
 
 ```bash
 npm install
+npm run setup
+```
+
+The setup command will:
+
+1. Ask whether you want local AI, remote API AI, or rules-only mode.
+2. Create `.env.local` for the selected setup.
+3. For local AI, check whether Ollama is installed.
+4. Pull the recommended Gemma 4 model when Ollama is available.
+5. Print the exact next command to run.
+
+Then start the app:
+
+```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-For local AI fallback, install Ollama first:
+### Option B: One-Line Local AI Setup
 
-1. Download Ollama from [ollama.com/download](https://ollama.com/download).
-2. Run the installer.
-3. Close and reopen your terminal.
-4. Confirm it is installed:
+Use this after cloning the repo if you want the recommended local Ollama + Gemma 4 setup:
+
+```bash
+npm install && npm run setup:local && npm run dev
+```
+
+If Ollama is not installed yet, the setup command will tell you to install it from [ollama.com/download](https://ollama.com/download), reopen your terminal, then run:
+
+```bash
+npm run setup:local
+```
+
+### Option C: Remote API Setup
+
+Use this if you want to provide an OpenAI-compatible API key instead of running a local model:
+
+```bash
+npm install
+npm run setup:api
+```
+
+Then edit `.env.local` and replace:
+
+```bash
+CRASHSENSE_AI_API_KEY=replace-me
+```
+
+Start the app:
+
+```bash
+npm run dev
+```
+
+### Option D: Rules Only
+
+Use this if you do not want any AI calls:
+
+```bash
+npm install
+npm run setup:rules
+npm run dev
+```
+
+## Local AI Checklist
+
+For local Gemma 4 fallback:
+
+1. Install Ollama from [ollama.com/download](https://ollama.com/download).
+2. Close and reopen your terminal.
+3. Confirm Ollama is available:
 
 ```bash
 ollama --version
 ```
 
-Then pull the recommended local model:
+4. Pull the model:
 
 ```bash
 npm run ai:ollama:pull
+```
+
+5. Confirm `.env.local` contains:
+
+```bash
+CRASHSENSE_AI_MODE=fallback
+CRASHSENSE_AI_BASE_URL=http://localhost:11434/v1
+CRASHSENSE_AI_MODEL=gemma4:e4b
+CRASHSENSE_AI_API_KEY=
+CRASHSENSE_AI_TIMEOUT_MS=20000
+```
+
+6. Start CrashSense AI:
+
+```bash
+npm run dev
 ```
 
 ## AI Fallback
