@@ -9,6 +9,10 @@ The app is privacy-first for the MVP: local rules always run first, AI is used o
 ## Features
 
 - Mobile-first dark UI for pasting logs and choosing Minecraft, Docker/Unraid, GitHub Actions, or Unknown.
+- In-app setup panel for rules-only mode, local Ollama/Gemma, or a remote OpenAI-compatible provider.
+- Log file upload, paste-from-clipboard, privacy preview, and redaction counts before analysis.
+- Real streamed analysis progress from the server, including the AI fallback/provider step.
+- Retry with AI and force AI triage controls.
 - Ranked findings with summary, likely cause, confidence, evidence context, and fix steps.
 - Rule coverage for common failures:
   - Java version mismatch
@@ -16,32 +20,47 @@ The app is privacy-first for the MVP: local rules always run first, AI is used o
   - missing dependency
   - duplicate mod
   - mixin transformation errors
+  - missing Java classes
+  - mod version conflicts
+  - corrupt chunks/world saves
+  - datapack and resource loading errors
   - bad config files
   - client/server-only mod mismatch
   - Java null pointer crashes
   - permission denied and PUID/PGID mismatches
   - out of memory
+  - disk full
   - port already in use
+  - connection refused
+  - database connection failures
   - file path not found
   - GPU/NVIDIA runtime not detected
   - Docker volume mapping issues
   - DNS failures
+  - TLS certificate failures
   - image pull failures
   - container healthcheck failures
   - missing GitHub Actions secrets
   - checkout failures
+  - GitHub token permission scope failures
+  - package install failures
+  - automated test failures
   - runtime version mismatches
   - dependency cache corruption
+  - native segmentation faults
 - Privacy redaction for tokens, secret-like values, emails, IP addresses, webhook URLs, and user filesystem paths.
 - Copy-ready Discord replies and GitHub issue templates.
 - Export markdown and JSON reports.
 - Open a prefilled GitHub issue URL.
+- Portable Windows `.exe` build target.
 - Optional OpenAI-compatible enrichment controlled by environment variables.
 - Local AI support through OpenAI-compatible servers such as Ollama or LM Studio.
 
 ![CrashSense AI mobile view](docs/screenshots/mobile.png)
 
 ## Quick Start
+
+Use Node.js `20.19.0` or newer. Node 22 LTS or Node 24 LTS is recommended for the desktop build tooling.
 
 ### Option A: Guided Setup
 
@@ -67,6 +86,8 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+You can also use the setup panel at the top of the app to switch modes, save `.env.local`, and check whether the configured AI provider/model is reachable.
 
 ### Option B: One-Line Local AI Setup
 
@@ -153,6 +174,8 @@ CrashSense AI is rules-first. In the default recommended setup, AI only runs whe
 
 If the result says `Generic crash`, CrashSense AI should hand the log to AI triage when AI is configured. If AI is not configured or the provider is unreachable, the UI will show `AI fallback: not-configured` or `AI fallback: failed` and include setup/provider fix steps instead of silently pretending the generic rule is enough.
 
+Use `Force AI triage` when a rule matched but you still want the configured AI provider to review the redacted log and improve the wording/fix plan.
+
 Supported modes:
 
 - `fallback`: use AI only when the rules database does not identify a specific cause.
@@ -220,10 +243,13 @@ Sample logs live in [`examples`](examples):
 - `minecraft-mixin-error.log`
 - `minecraft-null-pointer.log`
 - `docker-port-in-use.log`
+- `docker-database-refused.log`
 - `docker-volume-mapping.log`
 - `unraid-nvidia-missing.log`
 - `github-actions-missing-path.log`
 - `github-actions-missing-secret.log`
+- `github-actions-package-install.log`
+- `minecraft-corrupt-chunk.log`
 - `privacy-redaction.log`
 
 The web UI also includes built-in examples.
@@ -233,9 +259,12 @@ The web UI also includes built-in examples.
 ```text
 src/app/page.tsx                    Web UI
 src/app/api/analyze/route.ts        Server-side analysis API
+src/app/api/analyze/stream/route.ts Streamed analysis API
+src/app/api/setup/route.ts          Local setup and provider health API
 src/lib/analysis                    Parser, rule definitions, redaction, formatters, AI enrichment
 src/lib/crashsense.ts               Bot/App-friendly analyzer export
 src/lib/examples.ts                 Built-in example logs
+desktop/main.cjs                    Electron desktop wrapper
 examples                            Standalone test logs
 .github/workflows/ci.yml            Lint, test, build, and production audit
 ```
@@ -258,7 +287,8 @@ const result = analyzeCrashLog({
 ```json
 {
   "logType": "minecraft",
-  "log": "paste crash log here"
+  "log": "paste crash log here",
+  "forceAi": false
 }
 ```
 
@@ -282,6 +312,34 @@ Response:
 }
 ```
 
+`POST /api/analyze/stream` accepts the same body and returns `text/event-stream` events:
+
+```text
+event: stage
+data: {"id":"rules","label":"Running rule parser","status":"done","message":"Matched 1 rule(s)."}
+
+event: result
+data: {"summary":"..."}
+```
+
+`GET /api/setup?check=1` returns the current public AI config and provider health. `POST /api/setup` writes `.env.local` for local use and updates the current server process.
+
+## Desktop App
+
+Build the portable Windows executable:
+
+```bash
+npm run desktop:build
+```
+
+The generated file is written to:
+
+```text
+dist-desktop/CrashSense AI-0.1.0-win-x64.exe
+```
+
+The desktop app bundles CrashSense AI itself. It does not bundle Ollama or Gemma model files; use the in-app setup panel to point it at local Ollama or a remote OpenAI-compatible provider.
+
 ## Rule Authoring
 
 Rules live in [`src/lib/analysis/rule-definitions.ts`](src/lib/analysis/rule-definitions.ts). Add a structured rule definition rather than changing matcher logic.
@@ -302,12 +360,15 @@ Evidence context, scoring, ranking, and report formatting are handled by the sha
 
 ```bash
 npm test
+npm run test:ui:install
+npm run test:ui
 npm run lint
 npm run build
 npm audit --omit=dev
+npm run desktop:build
 ```
 
-CI runs the same checks on push and pull requests to `main`.
+CI runs lint, unit tests, Playwright UI tests, build, and production audit on push and pull requests to `main`.
 
 ## Contributing
 
@@ -326,7 +387,7 @@ Contributions are welcome. Good first issues include:
 - Unraid template rule packs.
 - GitHub issue comment helper.
 - Discord bot command.
-- Optional redaction preview before AI enrichment.
+- Signed desktop releases.
 
 ## License
 

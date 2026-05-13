@@ -1,0 +1,3 @@
+[Server thread/ERROR]: Exception reading chunk [12, -8]
+net.minecraft.world.level.chunk.storage.RegionFile: Chunk [12, -8] is in the wrong location
+Failed to load chunk from region file r.0.-1.mca

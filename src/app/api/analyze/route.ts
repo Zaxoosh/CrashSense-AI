@@ -16,6 +16,7 @@ export async function POST(request: Request) {
 
   const log = typeof body.log === "string" ? body.log.trim() : "";
   const logType = logTypes.includes(body.logType as LogType) ? (body.logType as LogType) : "unknown";
+  const forceAi = body.forceAi === true;
 
   if (!log) {
     return NextResponse.json({ error: "Paste a crash log before analysing." }, { status: 400 });
@@ -27,9 +28,9 @@ export async function POST(request: Request) {
 
   const { redactedLog } = redactLog(log);
   const ruleBasedResult = analyzeCrashLog({ log, logType });
-  const result = shouldUseAi(ruleBasedResult)
-    ? await analyzeWithAi(ruleBasedResult, logType, redactedLog)
-    : markAiNotConfigured(ruleBasedResult);
+  const result = shouldUseAi(ruleBasedResult, { forceAi })
+    ? await analyzeWithAi(ruleBasedResult, logType, redactedLog, { forceAi })
+    : markAiNotConfigured(ruleBasedResult, { forceAi });
 
   return NextResponse.json(result);
 }

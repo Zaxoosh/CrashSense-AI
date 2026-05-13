@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
+import { POST as STREAM_POST } from "./stream/route";
 
 describe("POST /api/analyze", () => {
   afterEach(() => {
@@ -168,5 +169,70 @@ describe("POST /api/analyze", () => {
     expect(body.aiStatus).toBe("failed");
     expect(body.aiError).toContain("HTTP 500");
     expect(body.likelyCause).toContain("AI fallback was needed");
+  });
+
+  it("forces AI triage for a specific rule match", async () => {
+    vi.stubEnv("CRASHSENSE_AI_MODE", "fallback");
+    vi.stubEnv("CRASHSENSE_AI_BASE_URL", "http://localhost:11434/v1");
+    vi.stubEnv("CRASHSENSE_AI_MODEL", "gemma4:e4b");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  summary: "The port conflict is blocking startup.",
+                  likelyCause: "Another service is already bound to the requested host port.",
+                  confidence: "high",
+                  evidence: ["listen tcp 0.0.0.0:8080: bind: address already in use"],
+                  fixSteps: ["Find and stop the process using port 8080.", "Change the host port mapping if both services are needed."],
+                }),
+              },
+            },
+          ],
+        }),
+      }),
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/analyze", {
+        method: "POST",
+        body: JSON.stringify({
+          forceAi: true,
+          logType: "docker",
+          log: "listen tcp 0.0.0.0:8080: bind: address already in use",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.aiUsed).toBe(true);
+    expect(body.aiMode).toBe("enrichment");
+    expect(body.summary).toBe("The port conflict is blocking startup.");
+  });
+
+  it("streams progress events and a final result", async () => {
+    vi.stubEnv("CRASHSENSE_AI_MODE", "off");
+
+    const response = await STREAM_POST(
+      new Request("http://localhost/api/analyze/stream", {
+        method: "POST",
+        body: JSON.stringify({
+          logType: "docker",
+          log: "listen tcp 0.0.0.0:8080: bind: address already in use",
+        }),
+      }),
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+    expect(body).toContain("event: stage");
+    expect(body).toContain("event: result");
+    expect(body).toContain("port-in-use");
   });
 });

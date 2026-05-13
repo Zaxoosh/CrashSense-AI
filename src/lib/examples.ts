@@ -74,6 +74,28 @@ bind source path does not exist: /mnt/user/appdata/crashsense
 Container failed to start.`,
   },
   {
+    label: "Docker database refused",
+    type: "docker",
+    log: `api_1  | Prisma P1001: Can't reach database server at db:5432
+api_1  | connect ECONNREFUSED 172.18.0.3:5432
+api_1  | SequelizeConnectionError: password authentication failed for user "app"`,
+  },
+  {
+    label: "GitHub package install failure",
+    type: "github-actions",
+    log: `Run npm ci
+npm ERR! ERESOLVE unable to resolve dependency tree
+npm ERR! peer react@"^18.0.0" from old-widget@1.2.0
+Process completed with exit code 1.`,
+  },
+  {
+    label: "Minecraft corrupt chunk",
+    type: "minecraft",
+    log: `[Server thread/ERROR]: Exception reading chunk [12, -8]
+net.minecraft.world.level.chunk.storage.RegionFile: Chunk [12, -8] is in the wrong location
+Failed to load chunk from region file r.0.-1.mca`,
+  },
+  {
     label: "Privacy redaction",
     type: "docker",
     log: `Error: permission denied while opening /home/alex/app/config.yml

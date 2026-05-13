@@ -23,14 +23,40 @@ type AiConfig = {
 
 const GENERIC_ONLY_RULES = new Set(["generic-crash"]);
 const DEFAULT_AI_TIMEOUT_MS = 120000;
+const HEALTH_TIMEOUT_MS = 3500;
 const GENERIC_FALLBACK_MESSAGE =
   "AI fallback was needed for this log, but no AI provider is configured or the configured provider could not be reached. Run `npm run setup` to configure local Ollama/Gemma 4 or a remote OpenAI-compatible API key.";
 
-export function shouldUseAi(result: AnalysisResult): boolean {
+export type AiRequestOptions = {
+  forceAi?: boolean;
+};
+
+export type PublicAiConfig = {
+  apiKeyConfigured: boolean;
+  baseUrl: string;
+  mode: AiMode;
+  model: string;
+  provider: "local" | "remote" | "off";
+  timeoutMs: number;
+};
+
+export type AiHealth = {
+  ok: boolean;
+  status: "off" | "not-configured" | "reachable" | "model-missing" | "unreachable" | "unauthorized" | "error";
+  message: string;
+  model?: string;
+  models?: string[];
+};
+
+export function shouldUseAi(result: AnalysisResult, options: AiRequestOptions = {}): boolean {
   const mode = getAiConfig().mode;
 
   if (mode === "off") {
     return false;
+  }
+
+  if (options.forceAi) {
+    return true;
   }
 
   if (mode === "always") {
@@ -40,8 +66,8 @@ export function shouldUseAi(result: AnalysisResult): boolean {
   return result.detectedRules.length === 0 || result.detectedRules.every((rule) => GENERIC_ONLY_RULES.has(rule));
 }
 
-export function markAiNotConfigured(result: AnalysisResult): AnalysisResult {
-  if (!needsAiTriage(result)) {
+export function markAiNotConfigured(result: AnalysisResult, options: AiRequestOptions = {}): AnalysisResult {
+  if (!needsAiTriage(result) && !options.forceAi) {
     return {
       ...result,
       aiStatus: "not-needed",
@@ -62,11 +88,11 @@ export function markAiNotConfigured(result: AnalysisResult): AnalysisResult {
   });
 }
 
-export async function analyzeWithAi(result: AnalysisResult, logType: LogType, redactedLog: string): Promise<AnalysisResult> {
+export async function analyzeWithAi(result: AnalysisResult, logType: LogType, redactedLog: string, options: AiRequestOptions = {}): Promise<AnalysisResult> {
   const config = getAiConfig();
 
   if (config.mode === "off") {
-    return markAiNotConfigured(result);
+    return markAiNotConfigured(result, options);
   }
 
   try {
@@ -115,19 +141,19 @@ export async function analyzeWithAi(result: AnalysisResult, logType: LogType, re
     }).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
-      return markAiFailed(result, await describeHttpFailure(response, config));
+      return markAiFailed(result, await describeHttpFailure(response, config), options);
     }
 
     const data = (await response.json()) as ChatCompletionResponse;
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      return markAiFailed(result, "AI provider returned an empty response.");
+      return markAiFailed(result, "AI provider returned an empty response.", options);
     }
 
     const patch = JSON.parse(content) as AiPatch;
     const evidence = normalizeEvidence(patch.evidence, redactedLog);
-    const mode = shouldUseAi(result) && result.detectedRules.every((rule) => GENERIC_ONLY_RULES.has(rule)) ? "fallback" : config.mode === "always" ? "enrichment" : "fallback";
+    const mode = shouldUseAi(result, options) && result.detectedRules.every((rule) => GENERIC_ONLY_RULES.has(rule)) ? "fallback" : config.mode === "always" || options.forceAi ? "enrichment" : "fallback";
     const enriched = {
       ...result,
       summary: typeof patch.summary === "string" ? patch.summary : result.summary,
@@ -144,11 +170,93 @@ export async function analyzeWithAi(result: AnalysisResult, logType: LogType, re
 
     return rebuildResult(enriched, logType);
   } catch (error) {
-    return markAiFailed(result, describeThrownFailure(error, config));
+    return markAiFailed(result, describeThrownFailure(error, config), options);
   }
 }
 
-function getAiConfig(): AiConfig {
+export function getPublicAiConfig(): PublicAiConfig {
+  const config = getAiConfig();
+
+  return {
+    apiKeyConfigured: Boolean(config.apiKey),
+    baseUrl: config.baseUrl,
+    mode: config.mode,
+    model: config.model,
+    provider: config.mode === "off" ? "off" : isLocalProvider(config.baseUrl) ? "local" : "remote",
+    timeoutMs: config.timeoutMs,
+  };
+}
+
+export async function checkAiHealth(): Promise<AiHealth> {
+  const config = getAiConfig();
+
+  if (config.mode === "off") {
+    return {
+      ok: false,
+      status: "off",
+      message: "AI mode is off. Local rules will still run.",
+      model: config.model,
+    };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${config.baseUrl.replace(/\/$/, "")}/models`, {
+      method: "GET",
+      signal: controller.signal,
+      headers: {
+        ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+      },
+    }).finally(() => clearTimeout(timeout));
+
+    if (response.status === 401 || response.status === 403) {
+      return {
+        ok: false,
+        status: "unauthorized",
+        message: "The AI provider rejected the configured API key or token.",
+        model: config.model,
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: "error",
+        message: `The AI provider returned HTTP ${response.status} while checking models.`,
+        model: config.model,
+      };
+    }
+
+    const data = (await response.json().catch(() => ({}))) as { data?: Array<{ id?: string; name?: string; model?: string }> };
+    const models = Array.isArray(data.data)
+      ? data.data.map((item) => item.id ?? item.name ?? item.model).filter((value): value is string => Boolean(value))
+      : [];
+    const hasModel = models.length === 0 || models.includes(config.model);
+
+    return {
+      ok: hasModel,
+      status: hasModel ? "reachable" : "model-missing",
+      message: hasModel
+        ? `AI provider is reachable${models.length > 0 ? ` and model "${config.model}" is available` : ""}.`
+        : `AI provider is reachable, but model "${config.model}" was not listed.`,
+      model: config.model,
+      models: models.slice(0, 12),
+    };
+  } catch (error) {
+    clearTimeout(timeout);
+
+    return {
+      ok: false,
+      status: "unreachable",
+      message: describeThrownFailure(error, config),
+      model: config.model,
+    };
+  }
+}
+
+export function getAiConfig(): AiConfig {
   const explicitMode = process.env.CRASHSENSE_AI_MODE ?? process.env.AI_MODE;
   const hasExplicitConfig = Boolean(
     explicitMode ??
@@ -189,8 +297,8 @@ function needsAiTriage(result: AnalysisResult): boolean {
   return result.detectedRules.length === 0 || result.detectedRules.every((rule) => GENERIC_ONLY_RULES.has(rule));
 }
 
-function markAiFailed(result: AnalysisResult, aiError: string): AnalysisResult {
-  if (!needsAiTriage(result)) {
+function markAiFailed(result: AnalysisResult, aiError: string, options: AiRequestOptions = {}): AnalysisResult {
+  if (!needsAiTriage(result) && !options.forceAi) {
     return {
       ...result,
       aiStatus: "failed",
@@ -243,6 +351,10 @@ function describeThrownFailure(error: unknown, config: AiConfig): string {
   }
 
   return error instanceof Error ? error.message : "AI fallback failed.";
+}
+
+function isLocalProvider(baseUrl: string): boolean {
+  return /(^https?:\/\/)?(localhost|127\.0\.0\.1|\[::1\])/i.test(baseUrl);
 }
 
 function rebuildResult(result: AnalysisResult, logType: LogType = "unknown"): AnalysisResult {

@@ -3,13 +3,22 @@
   "version": "0.1.0",
   "private": false,
   "description": "Plain-English crash log diagnosis for modpacks, containers, CI, and apps.",
+  "author": "Zaxoosh",
   "license": "MIT",
+  "main": "desktop/main.cjs",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest run",
+    "test:ui": "playwright test",
+    "test:ui:install": "playwright install chromium",
+    "desktop:preview": "npm run build && electron .",
+    "desktop:build": "npm run build && electron-builder --win portable",
     "setup": "node scripts/setup.mjs",
     "setup:local": "node scripts/setup.mjs --local",
     "setup:api": "node scripts/setup.mjs --api",
@@ -24,10 +33,13 @@
     "react-dom": "19.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^20.17.6",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "autoprefixer": "^10.4.20",
+    "electron": "^39.8.6",
+    "electron-builder": "^26.8.1",
     "eslint": "^8.57.1",
     "eslint-config-next": "15.5.18",
     "postcss": "^8.5.10",
@@ -37,5 +49,33 @@
   },
   "overrides": {
     "postcss": "^8.5.10"
+  },
+  "build": {
+    "appId": "ai.crashsense.app",
+    "productName": "CrashSense AI",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "asar": true,
+    "files": [
+      "desktop/**/*",
+      ".next/**/*",
+      "next.config.ts",
+      "package.json",
+      "node_modules/**/*",
+      "!**/.env*",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
   }
 }

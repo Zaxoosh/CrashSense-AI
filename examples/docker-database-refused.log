@@ -1,0 +1,3 @@
+api_1  | Prisma P1001: Can't reach database server at db:5432
+api_1  | connect ECONNREFUSED 172.18.0.3:5432
+api_1  | SequelizeConnectionError: password authentication failed for user "app"

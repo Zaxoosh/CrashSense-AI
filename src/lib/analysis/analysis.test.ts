@@ -84,9 +84,49 @@ describe("analyzeLog", () => {
     expect(result.detectedRules).toContain("docker-volume-mapping");
   });
 
+  it("detects missing Java classes", () => {
+    const result = analyzeLog("java.lang.NoClassDefFoundError: com/example/library/MissingThing", "minecraft");
+    expect(result.detectedRules).toContain("class-not-found");
+  });
+
+  it("detects Minecraft mod version conflicts", () => {
+    const result = analyzeLog("Mod Example requires version 2.0.0 of library, found version 1.0.0 but version 2.0.0 is required", "minecraft");
+    expect(result.detectedRules).toContain("mod-version-conflict");
+  });
+
+  it("detects corrupt Minecraft worlds or chunks", () => {
+    const result = analyzeLog("Exception reading chunk\nRegionFile: Chunk [12, -8] is in the wrong location", "minecraft");
+    expect(result.detectedRules).toContain("world-save-corruption");
+  });
+
+  it("detects datapack and resource loading errors", () => {
+    const result = analyzeLog("Failed to load datapacks: Couldn't parse data file recipes/broken.json", "minecraft");
+    expect(result.detectedRules).toContain("datapack-resource-error");
+  });
+
   it("detects DNS failures", () => {
     const result = analyzeLog("npm ERR! request to registry failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org", "github-actions");
     expect(result.detectedRules).toContain("dns-failure");
+  });
+
+  it("detects disk full failures", () => {
+    const result = analyzeLog("Error: ENOSPC: no space left on device, write '/tmp/cache.bin'", "docker");
+    expect(result.detectedRules).toContain("disk-full");
+  });
+
+  it("detects connection refused failures", () => {
+    const result = analyzeLog("connect ECONNREFUSED 172.18.0.3:5432", "docker");
+    expect(result.detectedRules).toContain("connection-refused");
+  });
+
+  it("detects database connection failures", () => {
+    const result = analyzeLog("SequelizeConnectionError: password authentication failed for user app", "docker");
+    expect(result.detectedRules).toContain("database-connection-failure");
+  });
+
+  it("detects TLS certificate failures", () => {
+    const result = analyzeLog("FetchError: unable to verify the first certificate", "github-actions");
+    expect(result.detectedRules).toContain("tls-certificate-error");
   });
 
   it("detects image pull failures", () => {
@@ -109,6 +149,21 @@ describe("analyzeLog", () => {
     expect(result.detectedRules).toContain("github-checkout-failure");
   });
 
+  it("detects GitHub token permission scope failures", () => {
+    const result = analyzeLog("Error: write access to repository not granted for github-actions[bot]", "github-actions");
+    expect(result.detectedRules).toContain("github-actions-permission-scope");
+  });
+
+  it("detects package install failures", () => {
+    const result = analyzeLog("npm ERR! ERESOLVE unable to resolve dependency tree", "github-actions");
+    expect(result.detectedRules).toContain("package-install-failure");
+  });
+
+  it("detects test failures", () => {
+    const result = analyzeLog("FAIL src/app.test.ts\nAssertionError: expected true to be false", "github-actions");
+    expect(result.detectedRules).toContain("test-failure");
+  });
+
   it("detects runtime version mismatches", () => {
     const result = analyzeLog("npm WARN EBADENGINE Unsupported engine: requires Node.js >=20.19.0", "github-actions");
     expect(result.detectedRules).toContain("runtime-version-mismatch");
@@ -117,6 +172,11 @@ describe("analyzeLog", () => {
   it("detects dependency cache corruption", () => {
     const result = analyzeLog("cache hit occurred\nnpm ERR! EINTEGRITY integrity checksum failed", "github-actions");
     expect(result.detectedRules).toContain("dependency-cache-corruption");
+  });
+
+  it("detects native segmentation faults", () => {
+    const result = analyzeLog("SIGSEGV (0xb) at pc=0x00007f Problematic frame:", "unknown");
+    expect(result.detectedRules).toContain("segmentation-fault");
   });
 
   it("includes evidence context and ranked findings", () => {

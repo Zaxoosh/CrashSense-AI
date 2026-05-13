@@ -2,7 +2,10 @@
 node_modules/
 out/
 dist/
+dist-desktop/
 coverage/
+playwright-report/
+test-results/
 .env
 .env*.local
 npm-debug.log*
